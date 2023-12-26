@@ -6,13 +6,14 @@ compile_error!("lol nah");
 mod jit;
 mod bf;
 
-use jit::Executable;
+use jit::{Executable, ToFnPtr};
 
-const CODE: &[u8] = &[0x48, 0xc7, 0xc0, 0x69, 0xcc, 0xbb, 0xaa];
+const CODE: &[u8] = &[0x89, 0xf8, 0x0f, 0xaf, 0xc7, 0xc3];
+
 fn main() {
-  println!("code: {CODE:x?}");
   let mut block = Executable::new(4096);
-  block.get_mut()[0..7].copy_from_slice(CODE);
-  let x: i32 = unsafe { block.execute() };
-  println!("function returned 0x{:x}", x);
+  block[0..CODE.len()].copy_from_slice(CODE);
+  let fn_ptr: unsafe extern fn(i32) -> i32 = unsafe { block.to_fn_ptr() };
+  let result = unsafe { fn_ptr(5) };
+  println!("{result}");
 }
