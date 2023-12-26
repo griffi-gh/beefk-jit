@@ -6,9 +6,9 @@ compile_error!("lol nah");
 mod jit;
 mod bf;
 
-use jit::{Executable, ToFnPtr};
+use jit::exe::{Executable, ToFnPtr};
 
-const CODE: &[u8] = &[0x89, 0xf8, 0x0f, 0xaf, 0xc7, 0xc3];
+const CODE: &[u8] = &[0x0f, 0xaf, 0xff, 0x89, 0xf8, 0xc3];
 
 fn main() {
   let mut block = Executable::new(4096);
