@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec, rc::Rc, cell::RefCell};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Effect {
@@ -8,35 +8,34 @@ pub enum Effect {
   Input,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub enum MetaType {
-  #[default]
-  Normal,
-  LoopStart,
-  LoopEnd,
+#[derive(Clone, Debug, Default)]
+pub struct BfUnit {
+  pub effects: HashMap<isize, Vec<Effect>>,
+  pub ptr_offset: isize,
 }
 
 #[derive(Clone, Debug)]
 pub enum BfOpBlock {
-  Unit {
-    effects: HashMap<isize, Vec<Effect>>,
-    ptr_offset: isize,
-  },
-  LoopStart {
-    linkid: Option<usize>,
-  },
-  LoopEnd {
-    linkid: Option<usize>,
-  }
+  Master(Vec<Rc<RefCell<BfOpBlock>>>),
+  Loop(Vec<Rc<RefCell<BfOpBlock>>>),
+  Unit(BfUnit),
 }
 
-fn parse_unoptimized(code: &str) -> Vec<BfOpBlock> {
-  // let mut counter = 0;
-  // let mut loop_uuidstack = vec![];
-  let mut blocks = vec![BfOpBlock::Unit {
-    effects: HashMap::new(),
-    ptr_offset: 0,
-  }];
+fn parse_unoptimized(code: &str) -> Rc<RefCell<BfOpBlock>> {
+  let master = Rc::new(RefCell::new(BfOpBlock::Master(vec![])));
+  let mut stack = vec![];
+  let mut current = Rc::clone(&master);
+  let mut unit = BfUnit::default();
+
+  let push_unit = |current: &mut BfOpBlock, unit: BfUnit| {
+    match current {
+      BfOpBlock::Master(blocks) | BfOpBlock::Loop(blocks) => {
+        blocks.push(Rc::new(RefCell::new(BfOpBlock::Unit(unit))));
+      },
+      _ => unreachable!()
+    }
+  };
+
   for token in code.chars() {
     match token {
       '-' | '+' => {
@@ -45,9 +44,8 @@ fn parse_unoptimized(code: &str) -> Vec<BfOpBlock> {
           '-' => -1,
           _ => unreachable!()
         };
-        let BfOpBlock::Unit{ effects, ptr_offset} = blocks.last_mut().unwrap() else { unreachable!() };
-        effects
-          .entry(*ptr_offset)
+        unit.effects
+          .entry(unit.ptr_offset)
           .or_insert(vec![])
           .push(Effect::CellInc(change));
       },
@@ -57,102 +55,118 @@ fn parse_unoptimized(code: &str) -> Vec<BfOpBlock> {
           '<' => -1,
           _ => unreachable!()
         };
-        let BfOpBlock::Unit{ ptr_offset, .. } = blocks.last_mut().unwrap() else { unreachable!() };
-        *ptr_offset += change;
+        unit.ptr_offset += change;
       },
       ',' => {
-        let BfOpBlock::Unit{ effects, ptr_offset } = blocks.last_mut().unwrap() else { unreachable!() };
-        effects
-          .entry(*ptr_offset)
+        unit.effects
+          .entry(unit.ptr_offset)
           .or_insert(vec![])
           .push(Effect::Input);
       },
       '.' => {
-        let BfOpBlock::Unit{ effects, ptr_offset } = blocks.last_mut().unwrap() else { unreachable!() };
-        effects
-          .entry(*ptr_offset)
+        unit.effects
+          .entry(unit.ptr_offset)
           .or_insert(vec![])
           .push(Effect::Output);
       },
-      '[' | ']' => {
-        blocks.push(match token {
-          '[' => BfOpBlock::LoopStart { linkid: None },
-          ']' => BfOpBlock::LoopEnd { linkid: None },
+      '[' => {
+        push_unit(&mut current.borrow_mut(), std::mem::take(&mut unit));
+        let new_current = match &mut *current.borrow_mut() {
+          BfOpBlock::Master(blocks) | BfOpBlock::Loop(blocks) => {
+            let loop_block = Rc::new(RefCell::new(BfOpBlock::Loop(vec![])));
+            blocks.push(Rc::clone(&loop_block));
+            loop_block
+          },
           _ => unreachable!()
-        });
-        blocks.push(BfOpBlock::Unit {
-          effects: HashMap::new(),
-          ptr_offset: 0
-        });
+        };
+        stack.push(Rc::clone(&current));
+        current = new_current;
       },
+      ']' => {
+        push_unit(&mut current.borrow_mut(), std::mem::take(&mut unit));
+        current = stack.pop().expect("Unmatched ]");
+      }
       _ => ()
     }
   }
-  blocks
+  push_unit(&mut current.borrow_mut(), unit);
+  master
 }
 
-fn optimize(blocks: &mut Vec<BfOpBlock>) {
+fn optimize(block: Rc<RefCell<BfOpBlock>>) {
+  let mut binding = block.borrow_mut();
+  let blocks = match &mut *binding {
+    BfOpBlock::Master(blocks) | BfOpBlock::Loop(blocks) => blocks,
+    _ => unreachable!()
+  };
+
+  let mut optimize_next = vec![];
+
   for block in blocks.iter_mut() {
-    let BfOpBlock::Unit { effects, ptr_offset } = block else {
-      continue
-    };
-    //Optimize block effects
-    for (&_, effects) in effects.iter_mut() {
-      //Collapse all consecutive CellInc effects into one
-      {
-        let mut opt_effects = Vec::with_capacity(effects.len());
-        let mut cell_inc = 0;
-        for effect in effects.iter() {
-          match effect {
-            Effect::CellInc(n) => cell_inc += *n,
-            _ => {
-              if cell_inc != 0 {
-                opt_effects.push(Effect::CellInc(cell_inc));
-                cell_inc = 0;
+    match &mut *block.borrow_mut() {
+      BfOpBlock::Master(_) | BfOpBlock::Loop(_) => {
+        optimize_next.push(Rc::clone(block));
+      }
+      BfOpBlock::Unit(unit) => {
+        //Optimize block effects
+        for (&_, effects) in unit.effects.iter_mut() {
+          //Collapse all consecutive CellInc effects into one
+          {
+            let mut opt_effects = Vec::with_capacity(effects.len());
+            let mut cell_inc = 0;
+            for effect in effects.iter() {
+              match effect {
+                Effect::CellInc(n) => cell_inc += *n,
+                _ => {
+                  if cell_inc != 0 {
+                    opt_effects.push(Effect::CellInc(cell_inc));
+                    cell_inc = 0;
+                  }
+                  opt_effects.push(*effect);
+                }
               }
-              opt_effects.push(*effect);
             }
+            if cell_inc != 0 {
+              opt_effects.push(Effect::CellInc(cell_inc));
+            }
+            *effects = opt_effects;
+            //effects.shrink_to_fit();
           }
         }
-        if cell_inc != 0 {
-          opt_effects.push(Effect::CellInc(cell_inc));
-        }
-        *effects = opt_effects;
-        //effects.shrink_to_fit();
       }
     }
   }
 
-  //Clean up unit blocks that have no effect
-  blocks.retain(|x| {
-    if let BfOpBlock::Unit { effects, ptr_offset } = x {
-      !effects.is_empty() || *ptr_offset != 0
-    } else {
-      true
+  //Remove empty blocks
+  blocks.retain(|block| {
+    match &*block.borrow() {
+      BfOpBlock::Unit(unit) => {
+        !unit.effects.is_empty() || unit.ptr_offset != 0
+      },
+      _ => true
     }
   });
-}
 
-fn link_loops(blocks: &mut [BfOpBlock]) {
-  let mut loop_stack = vec![];
-  for block_idx in 0..blocks.len() {
-    match blocks[block_idx] {
-      BfOpBlock::LoopStart { linkid: None } => {
-        loop_stack.push(block_idx);
-      },
-      BfOpBlock::LoopEnd { linkid: None } => {
-        let start_idx = loop_stack.pop().unwrap();
-        blocks[start_idx] = BfOpBlock::LoopStart { linkid: Some(block_idx) };
-        blocks[block_idx] = BfOpBlock::LoopEnd { linkid: Some(start_idx) };
-      },
-      _ => ()
-    }
+  drop(binding);
+
+  for optimize_next in optimize_next {
+    optimize(optimize_next);
   }
 }
 
-pub fn parse(code: &str) -> Vec<BfOpBlock> {
-  let mut blocks = parse_unoptimized(code);
-  optimize(&mut blocks);
-  link_loops(&mut blocks);
-  blocks
+//   //Clean up unit blocks that have no effect
+//   blocks.retain(|x| {
+//     if let BfOpBlock::Unit { effects, ptr_offset } = x {
+//       !effects.is_empty() || *ptr_offset != 0
+//     } else {
+//       true
+//     }
+//   });
+// }
+
+
+pub fn parse(code: &str) -> Rc<RefCell<BfOpBlock>> {
+  let mut block = parse_unoptimized(code);
+  optimize(Rc::clone(&block));
+  block
 }
