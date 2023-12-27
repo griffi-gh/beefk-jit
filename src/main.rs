@@ -8,7 +8,7 @@ const BF_CODE: &str ="++++>--<[->++<]+++<[>]";
 const CODE: &[u8] = &[0x0f, 0xaf, 0xff, 0x89, 0xf8, 0xc3];
 
 mod jit;
-use jit::exe::{Executable, ToFnPtr};
+use jit::executable::{Executable, ToFnPtr};
 
 mod brainfuck;
 use brainfuck::{BfOpBlock, Effect};

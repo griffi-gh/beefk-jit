@@ -1,1 +1,1 @@
-pub mod exe;
+pub mod executable;
