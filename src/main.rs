@@ -12,7 +12,10 @@ const CODE: &[u8] = &[0x0f, 0xaf, 0xff, 0x89, 0xf8, 0xc3];
 
 fn main() {
   println!("Testing bf parsing and optimization:");
-  println!("{:#?}", bf::parse_optimize("++++>--<[->+<]"));
+  bf::parse("++++>--<[->+<]").iter().enumerate().for_each(|(i, x)| {
+    println!("{i}. {:?}", x);
+  });
+
   println!("Testing jit:");
   let mut block = Executable::new(4096);
   block[0..CODE.len()].copy_from_slice(CODE);
