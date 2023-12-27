@@ -30,7 +30,7 @@ impl Executable {
     self.memptr = memptr;
     self.size = size;
   }
-  
+
   pub fn get(&self) -> &[u8] {
     unsafe { core::slice::from_raw_parts(self.memptr as *const u8, self.size) }
   }

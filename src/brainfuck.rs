@@ -166,7 +166,7 @@ fn optimize(block: Rc<RefCell<BfOpBlock>>) {
 
 
 pub fn parse(code: &str) -> Rc<RefCell<BfOpBlock>> {
-  let mut block = parse_unoptimized(code);
+  let block = parse_unoptimized(code);
   optimize(Rc::clone(&block));
   block
 }
