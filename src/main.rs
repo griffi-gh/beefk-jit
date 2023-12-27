@@ -10,8 +10,8 @@ const CODE: &[u8] = &[0x0f, 0xaf, 0xff, 0x89, 0xf8, 0xc3];
 mod jit;
 use jit::exe::{Executable, ToFnPtr};
 
-mod bf;
-use bf::{BfOpBlock, Effect};
+mod brainfuck;
+use brainfuck::{BfOpBlock, Effect};
 
 /// Hacky function to pretty-print bf op blocks
 fn print_bf_block(block: Rc<RefCell<BfOpBlock>>, indent: usize) {
@@ -68,7 +68,7 @@ fn print_bf_block(block: Rc<RefCell<BfOpBlock>>, indent: usize) {
 fn main() {
   println!("Testing bf parsing and optimization:");
   println!("{BF_CODE}");
-  print_bf_block(bf::parse(BF_CODE), 0);
+  print_bf_block(brainfuck::parse(BF_CODE), 0);
 
   println!("Testing jit:");
   let mut block = Executable::new(4096);
