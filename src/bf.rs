@@ -1,17 +1,19 @@
 use std::{collections::HashMap, borrow::BorrowMut};
 
+#[derive(Clone, Copy, Debug)]
 pub enum Effect {
   CellInc(i16),
-  CellSet(u8),
+  //CellSet(u8),
   Output,
   Input,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BfOpBlock {
   pub effects: HashMap<isize, Vec<Effect>>,
   pub ptr_offset: isize,
-  pub begin: Option<usize>,
+  //pub begin: Option<usize>,
+  //pub terminates: bool,
 }
 
 fn parse(code: &str) -> Vec<BfOpBlock> {
@@ -53,6 +55,9 @@ fn parse(code: &str) -> Vec<BfOpBlock> {
           .or_insert(vec![])
           .push(Effect::Output);
       },
+      '[' => {
+        blocks.push(BfOpBlock::default());
+      }
       _ => ()
     }
   }
@@ -61,7 +66,31 @@ fn parse(code: &str) -> Vec<BfOpBlock> {
 
 fn optimize(blocks: &mut Vec<BfOpBlock>) {
   for block in blocks {
-
+    //Optimize block effects
+    for (&offset, effects) in block.effects.iter_mut() {
+      //Collapse all consecutive CellInc effects into one
+      {
+        let mut opt_effects = Vec::with_capacity(effects.len());
+        let mut cell_inc = 0;
+        for effect in effects.iter() {
+          match effect {
+            Effect::CellInc(n) => cell_inc += *n,
+            _ => {
+              if cell_inc != 0 {
+                opt_effects.push(Effect::CellInc(cell_inc));
+                cell_inc = 0;
+              }
+              opt_effects.push(*effect);
+            }
+          }
+        }
+        if cell_inc != 0 {
+          opt_effects.push(Effect::CellInc(cell_inc));
+        }
+        *effects = opt_effects;
+        //effects.shrink_to_fit();
+      }
+    }
   }
 }
 
