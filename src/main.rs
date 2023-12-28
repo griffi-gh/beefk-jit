@@ -11,11 +11,12 @@ mod jit;
 use jit::executable::{Executable, ToFnPtr};
 
 mod brainfuck;
+use brainfuck::ast;
 
 fn main() {
   println!("Testing bf parsing and optimization:");
   println!("{BF_CODE}");
-  brainfuck::debug_print_tree(brainfuck::parse_tree(BF_CODE), 0);
+  ast::debug_print_tree(ast::parse_tree(BF_CODE), 0);
 
   println!("Testing jit:");
   let mut block = Executable::new(4096);
