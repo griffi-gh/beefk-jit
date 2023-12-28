@@ -21,7 +21,7 @@ pub enum BfOpBlock {
   Unit(BfUnit),
 }
 
-fn parse_unoptimized(code: &str) -> Rc<RefCell<BfOpBlock>> {
+fn parse_tree_unoptimized(code: &str) -> Rc<RefCell<BfOpBlock>> {
   let master = Rc::new(RefCell::new(BfOpBlock::Master(vec![])));
   let mut stack = vec![];
   let mut current = Rc::clone(&master);
@@ -93,7 +93,7 @@ fn parse_unoptimized(code: &str) -> Rc<RefCell<BfOpBlock>> {
   master
 }
 
-fn optimize(block: Rc<RefCell<BfOpBlock>>) {
+fn optimize_tree(block: Rc<RefCell<BfOpBlock>>) {
   let mut binding = block.borrow_mut();
   let blocks = match &mut *binding {
     BfOpBlock::Master(blocks) | BfOpBlock::Loop(blocks) => blocks,
@@ -150,7 +150,7 @@ fn optimize(block: Rc<RefCell<BfOpBlock>>) {
   drop(binding);
 
   for optimize_next in optimize_next {
-    optimize(optimize_next);
+    optimize_tree(optimize_next);
   }
 }
 
@@ -164,9 +164,83 @@ fn optimize(block: Rc<RefCell<BfOpBlock>>) {
 //   });
 // }
 
-
-pub fn parse(code: &str) -> Rc<RefCell<BfOpBlock>> {
-  let block = parse_unoptimized(code);
-  optimize(Rc::clone(&block));
+pub fn parse_tree(code: &str) -> Rc<RefCell<BfOpBlock>> {
+  let block = parse_tree_unoptimized(code);
+  optimize_tree(Rc::clone(&block));
   block
+}
+
+/// Hacky function to pretty-print bf op blocks
+pub fn debug_print_tree(block: Rc<RefCell<BfOpBlock>>, indent: usize) {
+  let print_ident = |indent: usize| {
+    for _ in 0..indent {
+      print!("  ");
+    }
+  };
+  match &*block.borrow() {
+    BfOpBlock::Master(blocks) => {
+      for block in blocks {
+        debug_print_tree(Rc::clone(block), indent);
+      }
+    },
+    BfOpBlock::Loop(blocks) => {
+      print_ident(indent);
+      println!("loop {{");
+      for block in blocks {
+        debug_print_tree(Rc::clone(block), indent + 1);
+      }
+      print_ident(indent);
+      println!("}}");
+    },
+    BfOpBlock::Unit(unit) => {
+      print_ident(indent);
+      println!("unit {{");
+      for (offset, effects) in unit.effects.iter() {
+        print_ident(indent + 1);
+        print!("p[{offset:+}]: ");
+        for effect in effects {
+          match effect {
+            Effect::CellInc(change) => {
+              println!("{change:+};");
+            },
+            Effect::Output => {
+              println!("output;");
+            },
+            Effect::Input => {
+              println!("input;");
+            }
+          }
+        }
+      }
+      if unit.ptr_offset != 0 {
+        print_ident(indent + 1);
+        println!("p: {:+};", unit.ptr_offset);
+      }
+      print_ident(indent);
+      println!("}}");
+    }
+  }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum BfilOpcode {
+  /// increment cell relative to ptr
+  CellInc(isize, i16),
+  /// set cell to absolute value
+  CellSet(isize, u8),
+  /// output cell relative to ptr
+  Output(isize),
+  /// input to cell relative to ptr
+  Input(isize),
+  /// position is not guaranteed to be up-to-date until final step!
+  LoopStart(usize),
+  /// position is not guaranteed to be up-to-date until final step!
+  LoopEnd(usize),
+}
+
+pub fn compile_bfil(master: BfOpBlock) -> Vec<BfilOpcode> {
+  assert!(matches!(master, BfOpBlock::Master(_)), "Not a master block");
+  let mut opcodes = vec![];
+  todo!();
+  opcodes
 }
