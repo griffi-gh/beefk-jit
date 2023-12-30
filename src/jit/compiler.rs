@@ -141,6 +141,7 @@ fn compile_ast_recursive(
         BfOpBlock::Loop(_) => {
           println!("cmp byte ptr [rbx], 0");
           code.extend([0x80, 0x3b, 0x00]);
+          println!(";loop position is deferred!");
           je32(code, 0); //DEFERRED, *MUST* use JE32 DUE TO CONST SIZE!
         },
         _ => unreachable!()
