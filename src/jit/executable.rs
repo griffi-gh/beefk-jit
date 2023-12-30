@@ -21,6 +21,12 @@ impl Executable {
     Self { memptr, size }
   }
 
+  pub fn from_slice(slice: &[u8]) -> Self {
+    let mut new = Self::new(slice.len());
+    new.copy_from_slice(slice);
+    new
+  }
+
   pub fn resize(&mut self, size: usize) {
     let memptr = unsafe {
       libc::mremap(self.memptr, self.size, size, libc::MREMAP_MAYMOVE)
@@ -85,6 +91,10 @@ impl Clone for Executable {
     new.copy_from_slice(self.get());
     new
   }
+}
+
+impl From<&[u8]> for Executable {
+  fn from(slice: &[u8]) -> Self { Self::from_slice(slice) }
 }
 
 impl core::ops::Deref for Executable {

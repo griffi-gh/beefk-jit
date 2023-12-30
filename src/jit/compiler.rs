@@ -139,8 +139,8 @@ fn compile_ast_recursive(
       match item {
         BfOpBlock::Master(_) => (),
         BfOpBlock::Loop(_) => {
-          println!("cmp DWORD PTR [rbx], 0");
-          code.extend([0x83, 0x3b, 0x00]);
+          println!("cmp byte ptr [rbx], 0");
+          code.extend([0x80, 0x3b, 0x00]);
           je32(code, 0); //DEFERRED, *MUST* use JE32 DUE TO CONST SIZE!
         },
         _ => unreachable!()
@@ -155,8 +155,8 @@ fn compile_ast_recursive(
           // code.push(0xc3); //ret
         },
         BfOpBlock::Loop(_) => {
-          println!("cmp DWORD PTR [rbx], 0");
-          code.extend([0x83, 0x3b, 0x00]);
+          println!("cmp byte ptr [rbx], 0");
+          code.extend([0x80, 0x3b, 0x00]);
           jne(code, len_after_head as i32 - code.len() as i32, true);
           let len_after_tail = code.len();
           let jp_diff = len_after_tail as i32 - len_after_head as i32;
@@ -197,4 +197,14 @@ pub fn compile_ast(item: Rc<RefCell<BfOpBlock>>) -> Vec<u8> {
   let mut code = vec![];
   compile_ast_recursive(item, &mut code);
   code
+}
+
+pub fn wrap_compiled(code: &mut Vec<u8>) {
+  //mov rbp, rdi; at start
+  code.reserve(4);
+  code.insert(0, 0xfb);
+  code.insert(0, 0x89);
+  code.insert(0, 0x48);
+  //ret; at the end
+  code.push(0xC3);
 }
