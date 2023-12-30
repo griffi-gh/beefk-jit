@@ -3,7 +3,7 @@ use std::{collections::HashMap, vec, rc::Rc, cell::RefCell};
 #[derive(Clone, Copy, Debug)]
 pub enum Effect {
   CellInc(i16),
-  //CellSet(u8),
+  CellSet(u8),
   Output,
   Input,
 }
@@ -113,21 +113,36 @@ fn optimize_tree(block: Rc<RefCell<BfOpBlock>>) {
           //Collapse all consecutive CellInc effects into one
           {
             let mut opt_effects = Vec::with_capacity(effects.len());
-            let mut cell_inc = 0;
+            //Cell difference or absolute value in case is_relative is false
+            let mut cell_inc_or_value = 0;
+            let mut is_relative = true;
             for effect in effects.iter() {
               match effect {
-                Effect::CellInc(n) => cell_inc += *n,
+                Effect::CellInc(n) => cell_inc_or_value += *n,
+                Effect::CellSet(v) => {
+                  cell_inc_or_value = *v as i16;
+                  is_relative = false;
+                },
                 _ => {
-                  if cell_inc != 0 {
-                    opt_effects.push(Effect::CellInc(cell_inc));
-                    cell_inc = 0;
+                  if is_relative {
+                    if cell_inc_or_value != 0 {
+                      opt_effects.push(Effect::CellInc(cell_inc_or_value));
+                      cell_inc_or_value = 0;
+                    }
+                  } else {
+                    opt_effects.push(Effect::CellSet(cell_inc_or_value as u8));
+                    cell_inc_or_value = 0;
                   }
                   opt_effects.push(*effect);
                 }
               }
             }
-            if cell_inc != 0 {
-              opt_effects.push(Effect::CellInc(cell_inc));
+            if is_relative {
+              if cell_inc_or_value != 0 {
+                opt_effects.push(Effect::CellInc(cell_inc_or_value));
+              }
+            } else {
+              opt_effects.push(Effect::CellSet(cell_inc_or_value as u8));
             }
             *effects = opt_effects;
             //effects.shrink_to_fit();
@@ -153,16 +168,6 @@ fn optimize_tree(block: Rc<RefCell<BfOpBlock>>) {
     optimize_tree(optimize_next);
   }
 }
-
-//   //Clean up unit blocks that have no effect
-//   blocks.retain(|x| {
-//     if let BfOpBlock::Unit { effects, ptr_offset } = x {
-//       !effects.is_empty() || *ptr_offset != 0
-//     } else {
-//       true
-//     }
-//   });
-// }
 
 pub fn parse_tree(code: &str) -> Rc<RefCell<BfOpBlock>> {
   let block = parse_tree_unoptimized(code);
@@ -201,16 +206,20 @@ pub fn debug_print_tree(block: Rc<RefCell<BfOpBlock>>, indent: usize) {
         for effect in effects {
           match effect {
             Effect::CellInc(change) => {
-              println!("{change:+};");
+              print!("{change:+}; ");
+            },
+            Effect::CellSet(value) => {
+              print!("={value};");
             },
             Effect::Output => {
-              println!("output;");
+              print!("output; ");
             },
             Effect::Input => {
-              println!("input;");
+              print!("input; ");
             }
           }
         }
+        println!();
       }
       if unit.ptr_offset != 0 {
         print_ident(indent + 1);
