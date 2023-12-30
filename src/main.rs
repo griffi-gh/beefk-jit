@@ -1,14 +1,7 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 #[cfg(not(unix))] compile_error!("lol nah");
 
-use std::{rc::Rc, cell::RefCell};
-
-//const BF_CODE: &str ="+>++>+++[->>+<<]++++";
-const BF_CODE: &str = ">++++++++[<+++++++++>-]<.>++++[<+++++++>-]<+.+++++++..+++.>>++++++[<+++++++>-]<+
-+.------------.>++++++[<+++++++++>-]<+.<.+++.------.--------.>>>++++[<++++++++>-
-]<+.";
-
-// const CODE: &[u8] = &[0x0f, 0xaf, 0xff, 0x89, 0xf8, 0xc3];
+use std::{rc::Rc, fs, env};
 
 mod jit;
 use jit::executable::{Executable, ToFnPtr};
@@ -17,9 +10,11 @@ mod brainfuck;
 use brainfuck::ast;
 
 fn main() {
+  let bf_code = fs::read_to_string(env::args().nth(1).unwrap()).expect("file read error");
+
   println!("=== Parsing and optimizing bf code...");
-  println!("{BF_CODE}");
-  let block = ast::parse_tree(BF_CODE);
+  println!("{bf_code}");
+  let block = ast::parse_tree(&bf_code);
   ast::debug_print_tree(Rc::clone(&block), 0);
 
   println!("\n=== Running x86_64 codegen on the master block");
