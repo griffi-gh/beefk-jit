@@ -40,6 +40,16 @@ impl Executable {
   }
 }
 
+impl Drop for Executable {
+  fn drop(&mut self) {
+    unsafe {
+      assert_eq!(libc::munmap(self.memptr, self.size), 0);
+    }
+  }
+}
+
+// ToFnPtr impl
+
 pub trait ToFnPtr<A, F> {
   unsafe fn to_fn_ptr(&self) -> F;
 }
@@ -67,13 +77,7 @@ macro_rules! to_fn_ptr_impl_recursive {
 
 to_fn_ptr_impl_recursive!(ARG9 ARG8 ARG7 ARG6 ARG5 ARG4 ARG3 ARG2 ARG1 ARG0);
 
-impl Drop for Executable {
-  fn drop(&mut self) {
-    unsafe {
-      assert_eq!(libc::munmap(self.memptr, self.size), 0);
-    }
-  }
-}
+// misc. impls
 
 impl Clone for Executable {
   fn clone(&self) -> Self {
