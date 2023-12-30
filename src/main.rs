@@ -3,7 +3,10 @@
 
 use std::{rc::Rc, cell::RefCell};
 
-const BF_CODE: &str ="+>++>+++[->>+<<]++++";
+//const BF_CODE: &str ="+>++>+++[->>+<<]++++";
+const BF_CODE: &str = ">++++++++[<+++++++++>-]<.>++++[<+++++++>-]<+.+++++++..+++.>>++++++[<+++++++>-]<+
++.------------.>++++++[<+++++++++>-]<+.<.+++.------.--------.>>>++++[<++++++++>-
+]<+.";
 
 // const CODE: &[u8] = &[0x0f, 0xaf, 0xff, 0x89, 0xf8, 0xc3];
 
@@ -36,7 +39,7 @@ fn main() {
   let fn_ptr: unsafe extern fn(*mut u8) = unsafe { block.to_fn_ptr() };
   unsafe { fn_ptr(bf_memory[..].as_mut_ptr()) };
 
-  println!("Nyaa~ no segfault! (*＾▽＾)っ✨");
+  println!("\nNyaa~ no segfault! (*＾▽＾)っ✨");
   println!("\n=== bfmem state (showing first 30 bytes)");
   println!("{:02x?}", &bf_memory[0..30]);
 

@@ -209,7 +209,30 @@ fn compile_ast_recursive(
             &Effect::CellInc(by) => {
               add_to_ptr_rbx(code, key as i32 + key_shift, by);
             },
-            //TODO Input/Output effects
+            //TODO optimize add
+            Effect::Output => {
+              println!(
+                "\
+                  mov rax, 1 ; OUTPUT \n\
+                  mov rdi, 1 \n\
+                  mov rdx, 1 \n\
+                  mov rsi, rbx \n\
+                  add rsi, {} ;(imm32) \n\
+                  syscall \
+                ",
+                key as i32 + key_shift
+              );
+              code.extend([
+                0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00, //mov rax, 1
+                0x48, 0xC7, 0xC7, 0x01, 0x00, 0x00, 0x00, //mov rdi, 1
+                0x48, 0xC7, 0xC2, 0x01, 0x00, 0x00, 0x00, //mov rdx, 1
+                0x48, 0x89, 0xDE, //mov rsi, rbx
+                0x48, 0x81, 0xC6, //add rsi, imm32
+              ]);
+              code.extend((key as i32 + key_shift).to_le_bytes().as_slice());
+              code.extend([0x0F, 0x05]); //syscall
+            }
+            //TODO Effect::Input
             _ => unimplemented!()
           }
         }
