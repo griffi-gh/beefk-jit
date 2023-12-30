@@ -139,6 +139,7 @@ fn compile_ast_recursive(
       match item {
         BfOpBlock::Master(_) => (),
         BfOpBlock::Loop(_) => {
+          println!("; [[[");
           println!("cmp byte ptr [rbx], 0");
           code.extend([0x80, 0x3b, 0x00]);
           println!(";loop position is deferred!");
@@ -151,11 +152,9 @@ fn compile_ast_recursive(
         compile_ast_recursive(Rc::clone(child), code)
       }
       match item {
-        BfOpBlock::Master(_) => {
-          // println!("ret");
-          // code.push(0xc3); //ret
-        },
+        BfOpBlock::Master(_) => (),
         BfOpBlock::Loop(_) => {
+          println!("; ]]]");
           println!("cmp byte ptr [rbx], 0");
           code.extend([0x80, 0x3b, 0x00]);
           jne(code, len_after_head as i32 - code.len() as i32, true);
@@ -170,7 +169,7 @@ fn compile_ast_recursive(
       }
     },
     BfOpBlock::Unit(unit) => {
-      println!("; --- unit begin ---");
+      println!("; ***");
 
       let mut keys: Vec<isize> = unit.effects.keys().copied().collect();
       keys.sort();
@@ -220,8 +219,6 @@ fn compile_ast_recursive(
       if !optimized_ptr {
         add_to_rbx(code, unit.ptr_offset as i32);
       }
-
-      println!("; --- unit end ---");
     }
   }
 }
