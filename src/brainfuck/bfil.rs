@@ -1,3 +1,5 @@
+//! //XXX THIS IS WIP AND CURRENTLY UNUSED!
+
 use super::ast::BfOpBlock;
 
 #[derive(Clone, Copy, Debug)]
