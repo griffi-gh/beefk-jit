@@ -110,7 +110,7 @@ fn je(code: &mut Vec<u8>, rel: i32) {
 
 /// jne rel (short/near) with optional correction for instruction size
 fn jne(code: &mut Vec<u8>, mut rel: i32, correct_for_instruction_size: bool) {
-  if correct_for_instruction_size {
+  if rel < 0 && correct_for_instruction_size {
     rel -= 2;
   }
   match rel {
