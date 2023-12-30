@@ -170,26 +170,58 @@ fn compile_ast_recursive(
       }
     },
     BfOpBlock::Unit(unit) => {
+      println!("; --- unit begin ---");
+
       let mut keys: Vec<isize> = unit.effects.keys().copied().collect();
       keys.sort();
-      for &key in &keys {
-        // let prev_key = keys.get((key as usize).wrapping_sub(1)).copied().unwrap_or(0);
-        // let ptr_diff = key - prev_key;
-        // if ptr_diff != 0 {
-        //   add_to_rbx(code, ptr_diff as i32);
-        // }
+      //if there's a key that matches final offset, move it to the end
+      //This makes Optimized ptrs optimization possible
+      //this is ok since all changes to memory within a single block can be considered parallel
+      //and thus order doesn't matter
+      let mut optimized_ptr = false;
+      if unit.ptr_offset != 0 {
+        if let Some(idx) = keys.iter().position(|&key| key == unit.ptr_offset) {
+          if idx != keys.len() - 1 {
+            keys.remove(idx);
+            keys.push(unit.ptr_offset);
+          }
+          optimized_ptr = true;
+        }
+      }
+
+      //Process keys
+      for (idx, &key) in keys.iter().enumerate() {
+        // if Optimized ptr, instead of setting rbx AFTER the Unit ends
+        // set it BEFORE PROCESSING THE LAST KEY, saving a couple bytes
+        let mut key_shift = 0;
+        if optimized_ptr && idx == keys.len() - 1 {
+          println!("; optimized:");
+          add_to_rbx(code, unit.ptr_offset as i32);
+          // Due to the line above,
+          // key memory accesses need to be shifted so that [rbx + key] is available at [rbx]
+          // XXX: DO NOT ADD DIRECTLY TO KEY, SINCE IT'S ALSO USED TO INDEX INTO HASHMAP!
+          key_shift = -key as i32;
+        }
+
+        // Materialize effects
         let effects = unit.effects.get(&key).unwrap();
         for effect in effects {
           match effect {
             &Effect::CellInc(by) => {
-              add_to_ptr_rbx(code, key as i32, by);
+              add_to_ptr_rbx(code, key as i32 + key_shift, by);
             },
+            //TODO Input/Output effects
             _ => unimplemented!()
           }
         }
       }
-      //add_to_rbx(code, (unit.ptr_offset - keys.last().copied().unwrap_or(0)) as i32);
-      add_to_rbx(code, unit.ptr_offset as i32);
+
+      //If not using optimized ptr optimization, just set the rbx AFTER the Unit ends
+      if !optimized_ptr {
+        add_to_rbx(code, unit.ptr_offset as i32);
+      }
+
+      println!("; --- unit end ---");
     }
   }
 }
