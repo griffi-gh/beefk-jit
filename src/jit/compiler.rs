@@ -151,8 +151,8 @@ fn compile_ast_recursive(
       }
       match item {
         BfOpBlock::Master(_) => {
-          println!("ret");
-          code.push(0xc3); //ret
+          // println!("ret");
+          // code.push(0xc3); //ret
         },
         BfOpBlock::Loop(_) => {
           println!("cmp DWORD PTR [rbx], 0");
