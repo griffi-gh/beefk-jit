@@ -124,8 +124,8 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
           {
             let mut opt_effects = Vec::with_capacity(effects.len());
             //Cell difference or absolute value in case is_relative is false
-            let mut cell_inc_or_value = 0;
-            let mut is_relative = true;
+            let mut cell_inc_or_value: i16 = 0;
+            let mut is_absolute = false;
             for effect in effects.iter() {
               match effect {
                 Effect::CellInc(n) => {
@@ -133,37 +133,29 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
                 },
                 Effect::CellSet(v) => {
                   cell_inc_or_value = *v as i16;
-                  is_relative = false;
+                  is_absolute = true;
                 },
-                _ => {
-                  if is_relative {
-                    if cell_inc_or_value != 0 {
-                      opt_effects.push(Effect::CellInc(cell_inc_or_value));
-                      cell_inc_or_value = 0;
-                    }
-                  } else {
+                Effect::Output => {
+                  if is_absolute {
                     opt_effects.push(Effect::CellSet(cell_inc_or_value as u8));
+                  } else if cell_inc_or_value != 0 {
+                    opt_effects.push(Effect::CellInc(cell_inc_or_value));
                     cell_inc_or_value = 0;
-                    //XXX: is this needed? I'm confused
-                    is_relative = true;
                   }
-                  opt_effects.push(*effect);
-                }
+                  opt_effects.push(Effect::Output);
+                },
+                Effect::Input => unimplemented!(),
               }
             }
-            if is_relative {
-              if cell_inc_or_value != 0 {
-                opt_effects.push(Effect::CellInc(cell_inc_or_value));
-              }
-            } else {
+            if is_absolute {
               opt_effects.push(Effect::CellSet(cell_inc_or_value as u8));
+            } else if cell_inc_or_value != 0 {
+              opt_effects.push(Effect::CellInc(cell_inc_or_value));
             }
             if *effects != opt_effects {
               modified = true;
             }
             *effects = opt_effects;
-            //effects.iter().zip(opt_effects.iter()).all(|(a, b)| a == b);
-            //effects.shrink_to_fit();
           }
         }
       }
@@ -184,7 +176,7 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
 
   // If the current block is Master or Loop, and there are consecutive Unit blocks,
   // merge them into the first ones, removing the others
-  //TODO fix this
+  //TODO: FIX THIS (URGENT); This might actually be NOT the broken part but enabling it breaks shit
   // let mut merge_into: Option<Rc<RefCell<BfOpBlock>>> = None;
   // blocks.retain_mut(|block| {
   //   match &mut *block.borrow_mut() {
@@ -219,6 +211,7 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
   // - only has a *single* effect that either adds or subs an odd value
   //Turn ourself into a Unit block that sets the cell to 0
   //This optimizes away loops like: [-]+++, and with multi-step optimization should reduce
+  //EDIT: also optimizes away loops that just set to zero
   //[-]+++ to a single CellSet(3) effect
   //TODO: expand this optimization to moves, aka [->+<]
   let mut new_self = None;
@@ -226,17 +219,23 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
     if blocks.len() == 1 {
       if let BfOpBlock::Unit(unit) = &*blocks[0].borrow() {
         if unit.ptr_offset == 0 && unit.effects.len() == 1 {
-          let (&_, effects) = unit.effects.iter().next().unwrap();
+          let (&cell, effects) = unit.effects.iter().next().unwrap();
           if effects.len() == 1 {
             let effect = &effects[0];
             if let Effect::CellInc(n) = effect {
               if n.abs() % 2 == 1 {
                 //HACK: borrow checker workaround:
                 new_self = Some(BfOpBlock::Unit(BfUnit {
-                  effects: HashMap::from([(0, vec![Effect::CellSet(0)])]),
+                  effects: HashMap::from([(cell, vec![Effect::CellSet(0)])]),
                   ptr_offset: 0,
                 }));
               }
+            } else if let Effect::CellSet(0) = effect {
+              //TODO: reduce code duplocation
+              new_self = Some(BfOpBlock::Unit(BfUnit {
+                effects: HashMap::from([(cell, vec![Effect::CellSet(0)])]),
+                ptr_offset: 0,
+              }));
             }
           }
         }
