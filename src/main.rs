@@ -33,11 +33,11 @@ fn main() {
   let block = Executable::from(&native_code[..]);
   let fn_ptr: unsafe extern fn(*mut u8) = unsafe { block.to_fn_ptr() };
   let instant = Instant::now();
-  unsafe { fn_ptr(bf_memory[..].as_mut_ptr().add(0x7fff)) };
+  unsafe { fn_ptr(bf_memory[0x100..].as_mut_ptr()) };
   let elapsed = instant.elapsed().as_secs_f64();
 
   println!("\nNyaa~ no segfault! (*＾▽＾)っ✨");
   println!("Execution time: {:.3}ms", elapsed * 1000.0);
   println!("\n=== bfmem state (showing first 30 bytes)");
-  println!("{:02x?}", &bf_memory[0..30]);
+  println!("{:02x?}", &bf_memory[0x100..(0x100 + 30)]);
 }
