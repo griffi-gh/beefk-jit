@@ -128,6 +128,34 @@ fn jne(code: &mut Vec<u8>, mut rel: i32, correct_for_instruction_size: bool) {
   }
 }
 
+fn gen_set_cell(code: &mut Vec<u8>, key: i32, value: u8) {
+  match value {
+    0 => {
+      println!("xor al, al");
+      code.extend([0x30, 0xC0]);
+    }
+    _ => {
+      println!("mov al, 0x{value:02x}");
+      code.extend([0xb0, value]);
+    }
+  }
+  match key {
+    0 => {
+      println!("mov [rbx], al");
+      code.extend([0x88, 0x03]);
+    }
+    -0x80..=0x7F => {
+      println!("mov[rbx + {}], al; (imm8)", key);
+      code.extend([0x88, 0x43, key as u8]);
+    }
+    _ => {
+      println!("mov[rbx + {}], al; (imm32)", key);
+      code.extend([0x88, 0x83]);
+      code.extend(key.to_le_bytes());
+    }
+  }
+}
+
 //TODO: use bfil instead
 fn compile_ast_recursive(
   item: Rc<RefCell<BfOpBlock>>,
@@ -206,9 +234,8 @@ fn compile_ast_recursive(
         let effects = unit.effects.get(&key).unwrap();
         for effect in effects {
           match effect {
-            &Effect::CellSet(to_value) => {
-              println!("mov al, 0x{to_value:02x}\nmov [rbx], al");
-              code.extend([0xb0, to_value, 0x88, 0x03]);
+            &Effect::CellSet(value) => {
+              gen_set_cell(code, key as i32 + key_shift, value);
             },
             &Effect::CellInc(by) => {
               add_to_ptr_rbx(code, key as i32 + key_shift, by);

@@ -177,32 +177,31 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
 
   // If the current block is Master or Loop, and there are consecutive Unit blocks,
   // merge them into the first ones, removing the others
-  //TODO: FIX THIS (URGENT); This might actually be NOT the broken part but enabling it breaks shit
-  // let mut merge_into: Option<Rc<RefCell<BfOpBlock>>> = None;
-  // blocks.retain_mut(|block| {
-  //   match &mut *block.borrow_mut() {
-  //     BfOpBlock::Unit(unit) => {
-  //       if let Some(merge_into) = &merge_into {
-  //         let BfOpBlock::Unit(merge_into_unit) = &mut *merge_into.borrow_mut() else {
-  //           unreachable!()
-  //         };
-  //         for (&key, key_effects) in &unit.effects {
-  //           merge_into_unit.effects.entry(key + merge_into_unit.ptr_offset).or_default().extend_from_slice(key_effects);
-  //         }
-  //         merge_into_unit.ptr_offset += unit.ptr_offset;
-  //         modified = true;
-  //         false
-  //       } else {
-  //         merge_into = Some(Rc::clone(block));
-  //         true
-  //       }
-  //     },
-  //     _ => {
-  //       merge_into = None;
-  //       true
-  //     },
-  //   }
-  // });
+  let mut merge_into: Option<Rc<RefCell<BfOpBlock>>> = None;
+  blocks.retain_mut(|block| {
+    match &mut *block.borrow_mut() {
+      BfOpBlock::Unit(unit) => {
+        if let Some(merge_into) = &merge_into {
+          let BfOpBlock::Unit(merge_into_unit) = &mut *merge_into.borrow_mut() else {
+            unreachable!()
+          };
+          for (&key, key_effects) in &unit.effects {
+            merge_into_unit.effects.entry(key + merge_into_unit.ptr_offset).or_default().extend_from_slice(key_effects);
+          }
+          merge_into_unit.ptr_offset += unit.ptr_offset;
+          modified = true;
+          false
+        } else {
+          merge_into = Some(Rc::clone(block));
+          true
+        }
+      },
+      _ => {
+        merge_into = None;
+        true
+      },
+    }
+  });
 
   //Drop borrow_mut binding
   drop(binding);
