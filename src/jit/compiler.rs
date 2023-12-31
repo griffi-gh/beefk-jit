@@ -145,11 +145,11 @@ fn gen_set_cell(code: &mut Vec<u8>, key: i32, value: u8) {
       code.extend([0x88, 0x03]);
     }
     -0x80..=0x7F => {
-      println!("mov[rbx + {}], al; (imm8)", key);
+      println!("mov [rbx + {}], al; (imm8)", key);
       code.extend([0x88, 0x43, key as u8]);
     }
     _ => {
-      println!("mov[rbx + {}], al; (imm32)", key);
+      println!("mov [rbx + {}], al; (imm32)", key);
       code.extend([0x88, 0x83]);
       code.extend(key.to_le_bytes());
     }
