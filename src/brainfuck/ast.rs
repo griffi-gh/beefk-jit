@@ -104,19 +104,20 @@ fn parse_tree_unoptimized(code: &str) -> Rc<RefCell<BfOpBlock>> {
 fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
   let mut modified = false;
 
+  //Strip away nested loops
+  {
+    //TODO
+  }
+
   let mut binding = block.borrow_mut();
   let blocks = match &mut *binding {
     BfOpBlock::Master(blocks) | BfOpBlock::Loop(blocks) => blocks,
     _ => unreachable!()
   };
 
-  let mut optimize_next = vec![];
-
   for block in blocks.iter_mut() {
     match &mut *block.borrow_mut() {
-      BfOpBlock::Master(_) | BfOpBlock::Loop(_) => {
-        optimize_next.push(Rc::clone(block));
-      }
+      BfOpBlock::Master(_) | BfOpBlock::Loop(_) => (),
       BfOpBlock::Unit(unit) => {
         //Optimize block effects
         for (&_, effects) in unit.effects.iter_mut() {
@@ -208,14 +209,14 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
 
   //Now, if the current block is loop and contains a single unit block that:
   // - does not change the pointer position
-  // - only has a *single* effect that either adds or subs an odd value
+  // - only has a *single* effect that either adds or subs an odd value, or sets current cell to zero
   //Turn ourself into a Unit block that sets the cell to 0
-  //This optimizes away loops like: [-]+++, and with multi-step optimization should reduce
-  //EDIT: also optimizes away loops that just set to zero
+  //
+  //This optimizes away loops like: [-]+++, and with multi-step optimization should reduce\
   //[-]+++ to a single CellSet(3) effect
   //TODO: expand this optimization to moves, aka [->+<]
   let mut new_self = None;
-  if let BfOpBlock::Loop(blocks) = &*block.borrow(){
+  if let BfOpBlock::Loop(blocks) = &*block.borrow() {
     if blocks.len() == 1 {
       if let BfOpBlock::Unit(unit) = &*blocks[0].borrow() {
         if unit.ptr_offset == 0 && unit.effects.len() == 1 {
@@ -243,17 +244,24 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
     }
   }
   if let Some(new_self) = new_self {
-    //HACK: remove block from optimize_next list
-    //since it just got turned into a Unit block, which is not optimizable
-    //TODO: generate optimize_next list AFTER this step instead!
-    optimize_next.retain(|b| !Rc::ptr_eq(b, &block));
     *block.borrow_mut() = new_self;
     modified = true;
   }
 
-  for optimize_next in optimize_next {
-    if optimize_tree_recursive(optimize_next) {
-      modified = true;
+  {
+    let binding = block.borrow();
+    let blocks = match &*binding {
+      BfOpBlock::Master(blocks) | BfOpBlock::Loop(blocks) => blocks,
+      //Since code above CAN in fact turn us into a Unit block, we need to just return here
+      _ => return true, //return modified
+    };
+    for block in blocks.iter() {
+      if matches!(&*block.borrow(), BfOpBlock::Unit(_)) {
+        continue;
+      }
+      if optimize_tree_recursive(Rc::clone(block)) {
+        modified = true;
+      }
     }
   }
 
