@@ -206,6 +206,10 @@ fn compile_ast_recursive(
         let effects = unit.effects.get(&key).unwrap();
         for effect in effects {
           match effect {
+            &Effect::CellSet(to_value) => {
+              println!("mov al, 0x{to_value:02x}\nmov [rbx], al");
+              code.extend([0xb0, to_value, 0x88, 0x03]);
+            },
             &Effect::CellInc(by) => {
               add_to_ptr_rbx(code, key as i32 + key_shift, by);
             },
