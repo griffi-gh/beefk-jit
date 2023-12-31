@@ -1,5 +1,7 @@
 use std::{collections::HashMap, vec, rc::Rc, cell::RefCell};
 
+use itertools::Itertools;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Effect {
   CellInc(i16),
@@ -182,8 +184,8 @@ fn optimize_tree_recursive(block: Rc<RefCell<BfOpBlock>>) -> bool {
 
   // If the current block is Master or Loop, and there are consecutive Unit blocks,
   // merge them into the first ones, removing the others
-  let mut merge_into: Option<Rc<RefCell<BfOpBlock>>> = None;
   //TODO fix this
+  // let mut merge_into: Option<Rc<RefCell<BfOpBlock>>> = None;
   // blocks.retain_mut(|block| {
   //   match &mut *block.borrow_mut() {
   //     BfOpBlock::Unit(unit) => {
@@ -294,7 +296,7 @@ pub fn debug_print_tree(block: Rc<RefCell<BfOpBlock>>, indent: usize) {
     BfOpBlock::Unit(unit) => {
       print_ident(indent);
       println!("unit {{");
-      for (offset, effects) in unit.effects.iter() {
+      for (offset, effects) in unit.effects.iter().sorted_by_key(|x| *x.0) {
         print_ident(indent + 1);
         print!("p[{offset:+}]: ");
         for effect in effects {
