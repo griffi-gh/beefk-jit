@@ -22,7 +22,7 @@ Only <i>execution</i> time is counted, stdout is piped to `/dev/null` during the
     <th><a href="https://github.com/griffi-gh/brian"><code>griffi-gh/brian</code></a></th>
   </tr>
   <tr>
-    <th><a href="bf/mandelbrot.bf"><code>mandelbrot.bf</code></a></th>
+    <th><a href=".bf/mandelbrot.bf"><code>mandelbrot.bf</code></a></th>
     <td>~600ms</td>
     <td>~3400ms</td>
   <tr>
