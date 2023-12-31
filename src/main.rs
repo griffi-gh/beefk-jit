@@ -29,11 +29,11 @@ fn main() {
   );
 
   println!("\n=== Running the generated code:");
-  let mut bf_memory = [0u8; 30000];
+  let mut bf_memory = [0u8; 0xffff];
   let block = Executable::from(&native_code[..]);
   let fn_ptr: unsafe extern fn(*mut u8) = unsafe { block.to_fn_ptr() };
   let instant = Instant::now();
-  unsafe { fn_ptr(bf_memory[..].as_mut_ptr()) };
+  unsafe { fn_ptr(bf_memory[..].as_mut_ptr().add(0x7fff)) };
   let elapsed = instant.elapsed().as_secs_f64();
 
   println!("\nNyaa~ no segfault! (*＾▽＾)っ✨");
