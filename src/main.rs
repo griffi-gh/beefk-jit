@@ -40,10 +40,4 @@ fn main() {
   println!("Execution time: {:.3}ms", elapsed * 1000.0);
   println!("\n=== bfmem state (showing first 30 bytes)");
   println!("{:02x?}", &bf_memory[0..30]);
-
-  // let mut block = Executable::new(4096);
-  // block[0..CODE.len()].copy_from_slice(CODE);
-  // let fn_ptr: unsafe extern fn(i32) -> i32 = unsafe { block.to_fn_ptr() };
-  // let result = unsafe { fn_ptr(5) };
-  // println!("{result}");
 }
