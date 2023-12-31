@@ -29,7 +29,7 @@ fn main() {
   );
 
   println!("\n=== Running the generated code:");
-  let mut bf_memory = Box::new([0u8; 30000]);
+  let mut bf_memory = [0u8; 30000];
   let block = Executable::from(&native_code[..]);
   let fn_ptr: unsafe extern fn(*mut u8) = unsafe { block.to_fn_ptr() };
   let instant = Instant::now();
