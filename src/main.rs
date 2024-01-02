@@ -21,6 +21,7 @@ fn main() {
   brainfuck::debug_print_tree(Rc::clone(&block), 0);
 
   println!("\n=== Running x86_64 codegen on the master block");
+  assert!(compiler::NativeCompiler::supported(), "compiler does not support current target");
   let native_code = compiler::NativeCompiler::compile(
     Rc::clone(&block),
     Some(Target::Extern)

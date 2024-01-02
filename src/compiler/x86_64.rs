@@ -296,6 +296,9 @@ fn wrap_extern(code: &mut Vec<u8>) {
 
 pub struct Compiler;
 impl CompilerImpl for Compiler {
+  fn supported() -> bool {
+    cfg!(target_arch = "x86_64") && cfg!(unix)
+  }
   fn compile(item: Rc<RefCell<BfOpBlock>>, target: Option<super::Target>) -> Vec<u8> {
     let mut code = compile_ast(item);
     if target == Some(Target::Extern) {
