@@ -1,13 +1,16 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
-#[cfg(not(unix))] compile_error!("lol nah");
+
+#[cfg(not(unix))]
+compile_error!("non-unix-like systems are not supported");
 
 use std::{rc::Rc, fs, env, time::Instant};
 
 mod jit;
-use jit::{Executable, ToFnPtr};
-
 mod brainfuck;
 mod compiler;
+
+use jit::{Executable, ToFnPtr};
+use compiler::{CompilerImpl, Target};
 
 fn main() {
   let bf_code = fs::read_to_string(env::args().nth(1).unwrap()).expect("file read error");
@@ -18,9 +21,10 @@ fn main() {
   brainfuck::debug_print_tree(Rc::clone(&block), 0);
 
   println!("\n=== Running x86_64 codegen on the master block");
-  let mut native_code = compiler::compile_ast(Rc::clone(&block));
-  compiler::wrap_compiled(&mut native_code);
-  // println!("{:02x?}", bf_code);
+  let native_code = compiler::NativeCompiler::compile(
+    Rc::clone(&block),
+    Some(Target::Extern)
+  );
   println!("{}",
     native_code.iter()
       .map(|b| format!("{:02x}", b).to_string())

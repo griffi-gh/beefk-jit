@@ -27,15 +27,15 @@ impl Executable {
     new
   }
 
-  pub fn resize(&mut self, size: usize) {
-    let memptr = unsafe {
-      libc::mremap(self.memptr, self.size, size, libc::MREMAP_MAYMOVE)
-    };
-    assert_ne!(memptr, libc::MAP_FAILED);
-    assert_ne!(memptr, core::ptr::null_mut());
-    self.memptr = memptr;
-    self.size = size;
-  }
+  // pub fn resize(&mut self, size: usize) {
+  //   let memptr = unsafe {
+  //     libc::mremap(self.memptr, self.size, size, libc::MREMAP_MAYMOVE)
+  //   };
+  //   assert_ne!(memptr, libc::MAP_FAILED);
+  //   assert_ne!(memptr, core::ptr::null_mut());
+  //   self.memptr = memptr;
+  //   self.size = size;
+  // }
 
   pub fn get(&self) -> &[u8] {
     unsafe { core::slice::from_raw_parts(self.memptr as *const u8, self.size) }
