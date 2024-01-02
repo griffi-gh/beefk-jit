@@ -1,5 +1,5 @@
 use std::{rc::Rc, cell::RefCell};
-use crate::brainfuck::ast::{BfOpBlock, Effect};
+use crate::brainfuck::{BfOpBlock, Effect};
 
 /// add rbx, imm
 fn add_to_rbx(code: &mut Vec<u8>, imm: i32) {

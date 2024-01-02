@@ -4,22 +4,22 @@
 use std::{rc::Rc, fs, env, time::Instant};
 
 mod jit;
-use jit::executable::{Executable, ToFnPtr};
+use jit::{Executable, ToFnPtr};
 
 mod brainfuck;
-use brainfuck::ast;
+mod compiler;
 
 fn main() {
   let bf_code = fs::read_to_string(env::args().nth(1).unwrap()).expect("file read error");
 
   println!("=== Parsing and optimizing bf code...");
   println!("{bf_code}");
-  let block = ast::parse_tree(&bf_code);
-  ast::debug_print_tree(Rc::clone(&block), 0);
+  let block = brainfuck::parse_tree(&bf_code);
+  brainfuck::debug_print_tree(Rc::clone(&block), 0);
 
   println!("\n=== Running x86_64 codegen on the master block");
-  let mut native_code = jit::compiler::compile_ast(Rc::clone(&block));
-  jit::compiler::wrap_compiled(&mut native_code);
+  let mut native_code = compiler::compile_ast(Rc::clone(&block));
+  compiler::wrap_compiled(&mut native_code);
   // println!("{:02x?}", bf_code);
   println!("{}",
     native_code.iter()
